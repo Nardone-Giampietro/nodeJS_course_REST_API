@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const dotenv = require('dotenv');
 dotenv.config();
 const feedRoutes = require('./routes/feed');
+const authRoutes = require('./routes/auth');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const app = express();
@@ -28,6 +29,7 @@ const fileFilter = (req, file, cb) => {
 }
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 app.use((req,res,next)=>{
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET,PUT,POST,PATCH,DELETE");
@@ -43,12 +45,14 @@ app.use(multer({
 app.use("/images", express.static(path.join(__dirname, "images")));
 
 app.use("/feed", feedRoutes);
+app.use("/auth", authRoutes);
 
 app.use((err, req, res, next) => {
     console.log(err);
     const statusCode = err.statusCode;
     const message = err.message;
-    res.status(statusCode).json({message: message});
+    const data = err.data;
+    res.status(statusCode).json({message: message, data: data});
 });
 
 mongoose.connect(process.env.DATABASE_KEY)
