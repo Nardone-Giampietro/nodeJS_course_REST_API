@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 const feedRoutes = require('./routes/feed');
 const authRoutes = require('./routes/auth');
+const statusRoutes = require('./routes/status');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const app = express();
@@ -46,6 +47,7 @@ app.use("/images", express.static(path.join(__dirname, "images")));
 
 app.use("/feed", feedRoutes);
 app.use("/auth", authRoutes);
+app.use("/status", statusRoutes);
 
 app.use((err, req, res, next) => {
     console.log(err);

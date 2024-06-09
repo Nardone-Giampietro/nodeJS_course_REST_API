@@ -1,5 +1,6 @@
 const {validationResult } = require('express-validator');
 const Post = require('../model/post');
+const User = require('../model/user');
 const fs =  require('fs');
 const path = require('path');
 
@@ -9,7 +10,7 @@ exports.getPost = (req, res, next) => {
         .then(post => {
             if (!post) {
                 const error = new Error("Could not find post.");
-                error.status = 404;
+                error.statusCode = 404;
                 throw error;
             }
             res.status(200).json({message: "Post found.", post: post});
@@ -42,8 +43,9 @@ exports.getPosts = (req, res, next) => {
             if (!err.statusCode) {
                 console.log(err);
                 err.statusCode = 500;
-                next(err);
             }
+            next(err);
+
         });
 }
 
@@ -54,9 +56,11 @@ exports.postPosts = (req, res, next) => {
         throw error;
     }
     const imageUrl = req.file.path;
+    const userId = req.userId;
     const title = req.body.title;
     const content = req.body.content;
     const result = validationResult(req);
+    let newPost;
     if (!result.isEmpty()){
         const error = new Error("Validation failed, entered data is incorrect.");
         error.statusCode = 422;
@@ -65,39 +69,46 @@ exports.postPosts = (req, res, next) => {
     const post = new Post({
         title: title,
         content: content,
-        creator: {
-            name: "John"
-        },
+        creator: userId,
         imageUrl: imageUrl
     })
     post.save()
         .then(response => {
+            newPost = response;
+            return User.findById(userId)
+        })
+        .then(user => {
+            user.posts.push(newPost);
+            return user.save();
+        })
+        .then(result => {
             res.status(201).json({
                 message: "Post created.",
-                post: response
-            })
-
+                post: newPost,
+                creator: result.name
+            });
         })
         .catch(err =>{
-            if (!err.statusCode){
-                err.statusCode = 500;
-            }
+            err.statusCode = 500;
+            clearImage(imageUrl);
             next(err);
         });
 }
 
 exports.putPost = (req, res, next) => {
     const postId = req.params.postId;
+    let imageUrl = req.body.image;
     const result = validationResult(req);
     if (!result.isEmpty()){
         const error = new Error("Validation failed, entered data is incorrect.");
         error.statusCode = 422;
+        if (req.file){
+            clearImage(req.file.path);
+        }
         throw error;
     }
-
     const title = req.body.title;
     const content = req.body.content;
-    let imageUrl = req.body.image;
     if (req.file) {
         imageUrl = req.file.path;
     }
@@ -141,6 +152,12 @@ exports.putPost = (req, res, next) => {
 
 exports.deletePost = (req, res, next) => {
     const postId = req.params.postId;
+    const result = validationResult(req);
+    if (!result.isEmpty()){
+        const error = new Error("Validation failed, entered data is incorrect.");
+        error.statusCode = 422;
+        throw error;
+    }
     Post.findById(postId)
         .then(post => {
             if (!post) {
@@ -148,10 +165,18 @@ exports.deletePost = (req, res, next) => {
                 error.statusCode = 422;
                 throw error;
             }
+            const postUserId = post.creator;
             const postImageUrl = post.imageUrl;
             post.deleteOne()
                 .then(response => {
                     clearImage(postImageUrl);
+                    return User.findById(postUserId)
+                })
+                .then(user => {
+                    user.posts.pull(postId);
+                    return user.save()
+                })
+                .then(result => {
                     res.status(201).json({message: "Post deleted."});
                 })
                 .catch(err => {
