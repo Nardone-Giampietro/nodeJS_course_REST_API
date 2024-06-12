@@ -3,6 +3,7 @@ const Post = require('../model/post');
 const User = require('../model/user');
 const fs =  require('fs');
 const path = require('path');
+const { getIo } = require('../socket');
 
 exports.getPost = async (req, res, next) => {
     const postId = req.params.postId;
@@ -29,7 +30,11 @@ exports.getPosts = async (req, res, next) => {
     const perPage = 2;
     try {
         const totalItems = await Post.countDocuments();
-        const posts = await Post.find({}).populate("creator").skip((page - 1) * perPage).limit(perPage).exec();
+        const posts = await Post.find({})
+            .populate("creator")
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * perPage)
+            .limit(perPage).exec();
         res.status(200).json({message: "Posts found,", posts: posts, totalItems: totalItems});
     }
     catch (err) {
@@ -57,6 +62,7 @@ exports.postPosts = async (req, res, next) => {
         error.statusCode = 422;
         return next(error);
     }
+
     const post = new Post({
         title: title,
         content: content,
@@ -67,7 +73,11 @@ exports.postPosts = async (req, res, next) => {
        const newPost = await post.save();
        const user = await User.findById(userId);
        user.posts.push(newPost);
-       await user.save();
+       newPost.creator = await user.save();
+       getIo().emit('postPost', {
+               action: "create",
+               post: newPost
+           });
        res.status(201).json({
             message: "Post created.",
             post: newPost,
@@ -105,7 +115,7 @@ exports.putPost = async (req, res, next) => {
     }
 
     try {
-        const post = await Post.findById(postId);
+        const post = await Post.findById(postId).populate("creator");
         if (!post) {
             const error = new Error("Post not found.");
             error.statusCode = 422;
@@ -117,8 +127,12 @@ exports.putPost = async (req, res, next) => {
         post.imageUrl = imageUrl;
         post.title = title;
         post.content = content;
-        const newPost = await post.save();
-        res.status(200).json({message: "Post updated.", post: newPost});
+        const updatedPost = await post.save();
+        getIo().emit('postPost', {
+            action: "update",
+            post: updatedPost
+        });
+        res.status(200).json({message: "Post updated.", post: updatedPost});
     }
     catch (err) {
         if (!err.statusCode){
@@ -151,6 +165,10 @@ exports.deletePost = async (req, res, next) => {
         const user = await User.findById(postUserId);
         user.posts.pull(postId);
         await user.save();
+        getIo().emit("postPost", {
+            action: "delete",
+            post: postId
+        })
         res.status(201).json({message: "Post deleted."});
     }
     catch (err) {

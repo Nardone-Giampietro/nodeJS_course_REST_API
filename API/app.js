@@ -6,9 +6,14 @@ dotenv.config();
 const feedRoutes = require('./routes/feed');
 const authRoutes = require('./routes/auth');
 const statusRoutes = require('./routes/status');
+const { createServer } = require("node:http");
+const cors = require('cors');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const app = express();
+const server = createServer(app);
+const {socketInit} = require("./socket");
+
 
 const fileStorage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -31,12 +36,7 @@ const fileFilter = (req, file, cb) => {
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use((req,res,next)=>{
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET,PUT,POST,PATCH,DELETE");
-    res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-    next();
-});
+app.use(cors());
 
 app.use(multer({
     storage: fileStorage,
@@ -57,11 +57,14 @@ app.use((err, req, res, next) => {
     res.status(statusCode).json({message: message, data: data});
 });
 
+
+
 mongoose.connect(process.env.DATABASE_KEY)
     .then(result => {
-        app.listen(process.env.PORT, () => {
+        server.listen(process.env.PORT, () => {
             console.log(`Listening on port ${process.env.PORT}`);
         })
+        socketInit(server);
     })
     .catch(error => {
         console.error(error);
