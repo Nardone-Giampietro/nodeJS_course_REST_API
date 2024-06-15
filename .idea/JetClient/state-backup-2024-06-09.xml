@@ -8,7 +8,7 @@
             <requestState>
               <option name="body">
                 <bodyState>
-                  <option name="raw" value="{&#10;  &quot;query&quot; : &quot;{ hello { text } }&quot;&#10;}" />
+                  <option name="raw" value="{&#10;  &quot;title&quot;: &quot;title_NO63&quot;,&#10;  &quot;content&quot;: &quot;content_nV34&quot;&#10;}" />
                   <option name="type" value="JSON" />
                 </bodyState>
               </option>
@@ -20,11 +20,11 @@
                   </headerState>
                 </list>
               </option>
-              <option name="id" value="d6e14809-d3c0-460c-ae46-681bbfa23078" />
+              <option name="id" value="84285c30-2c36-4f18-a3eb-0318c3b67af8" />
               <option name="method" value="POST" />
               <option name="name" value="Draft" />
               <option name="sortWeight" value="1000000" />
-              <option name="url" value="http://localhost:8080/graphql" />
+              <option name="url" value="http://localhost:8080/feed/post" />
             </requestState>
           </list>
         </option>

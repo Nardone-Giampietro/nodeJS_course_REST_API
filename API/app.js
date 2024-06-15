@@ -3,16 +3,15 @@ const path = require('path');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
 dotenv.config();
-const feedRoutes = require('./routes/feed');
-const authRoutes = require('./routes/auth');
-const statusRoutes = require('./routes/status');
 const { createServer } = require("node:http");
 const cors = require('cors');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const app = express();
 const server = createServer(app);
-const {socketInit} = require("./socket");
+const {createHandler} = require("graphql-http/lib/use/express");
+const {schema} = require("./graphql/schema");
+const handlers = require("./graphql/handlers");
 
 
 const fileStorage = multer.diskStorage({
@@ -45,10 +44,6 @@ app.use(multer({
 
 app.use("/images", express.static(path.join(__dirname, "images")));
 
-app.use("/feed", feedRoutes);
-app.use("/auth", authRoutes);
-app.use("/status", statusRoutes);
-
 app.use((err, req, res, next) => {
     console.log(err);
     const statusCode = err.statusCode;
@@ -57,14 +52,19 @@ app.use((err, req, res, next) => {
     res.status(statusCode).json({message: message, data: data});
 });
 
-
+app.all("/graphql",
+    createHandler({
+        schema: schema,
+        rootValue: handlers,
+        graphiql: true
+    })
+);
 
 mongoose.connect(process.env.DATABASE_KEY)
     .then(result => {
         server.listen(process.env.PORT, () => {
             console.log(`Listening on port ${process.env.PORT}`);
         })
-        socketInit(server);
     })
     .catch(error => {
         console.error(error);
